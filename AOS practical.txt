@@ -1,0 +1,2024 @@
+*Q1Create a file with hole in it.
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+
+int main() {
+    // Open or create a file with read and write permissions
+    int fd = open("file_with_hole.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+    if (fd == -1) {
+        perror("Error opening file");
+        return 1;
+    }
+
+    // Seek to position 1000 in the file
+    off_t offset = 1000;
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        perror("Error seeking in file");
+        close(fd);
+        return 1;
+    }
+
+    // Write data to create a hole
+    const char* data = "Hello, this is a hole!";
+    ssize_t bytes_written = write(fd, data, strlen(data));
+
+    if (bytes_written == -1) {
+        perror("Error writing to file");
+        close(fd);
+        return 1;
+    }
+
+    // Close the file
+    close(fd);
+
+    printf("File with hole created successfully.\n");
+
+    return 0;
+}
+------------------------------------------------------------------------------------------------------------------------
+Q2
+take multiple files as Command Line Arguments and print their inode number
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <file1> <file2> ... <fileN>\n", argv[0]);
+        return 1;
+    }
+
+    for (int i = 1; i < argc; i++) {
+        const char *filename = argv[i];
+        struct stat file_stat;
+
+        // Use stat to get information about the file
+        if (stat(filename, &file_stat) == -1) {
+            perror("Error getting file information");
+            continue;
+        }
+
+        // Print the inode number
+        printf("File: %s\n", filename);
+        printf("Inode: %lu\n", (unsigned long)file_stat.st_ino);
+        printf("\n");
+    }
+
+    return 0;
+}
+------------------------------------------------------------------------------------------------------------------
+Q3
+Write a C program to find file properties such as inode number, number of hard link, 
+File permissions, File size, File access and modification time and so on of a given file 
+using stat() system call
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <time.h>
+
+void print_file_properties(const char *filename) {
+    struct stat file_stat;
+
+    // Use stat to get information about the file
+    if (stat(filename, &file_stat) == -1) {
+        perror("Error getting file information");
+        return;
+    }
+
+    // Print file properties
+    printf("File: %s\n", filename);
+    printf("Inode: %lu\n", (unsigned long)file_stat.st_ino);
+    printf("Number of Hard Links: %lu\n", (unsigned long)file_stat.st_nlink);
+    printf("File Permissions: %o\n", file_stat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+    printf("File Size: %ld bytes\n", (long)file_stat.st_size);
+
+    // Convert access and modification time to a human-readable format
+    char access_time[20];
+    char modify_time[20];
+    strftime(access_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&file_stat.st_atime));
+    strftime(modify_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&file_stat.st_mtime));
+
+    printf("Last Access Time: %s\n", access_time);
+    printf("Last Modification Time: %s\n", modify_time);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+
+    print_file_properties(argv[1]);
+
+    return 0;
+}
+-------------------------------------------------------------------------------------------------------------------
+Q4
+Print the type of file where file name accepted through Command Line
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+void print_file_type(const char *filename) {
+    struct stat file_stat;
+
+    // Use stat to get information about the file
+    if (stat(filename, &file_stat) == -1) {
+        perror("Error getting file information");
+        return;
+    }
+
+    // Check the file type using the S_IS* macros
+    if (S_ISREG(file_stat.st_mode)) {
+        printf("Regular File\n");
+    } else if (S_ISDIR(file_stat.st_mode)) {
+        printf("Directory\n");
+    } else if (S_ISCHR(file_stat.st_mode)) {
+        printf("Character Device\n");
+    } else if (S_ISBLK(file_stat.st_mode)) {
+        printf("Block Device\n");
+    } else if (S_ISFIFO(file_stat.st_mode)) {
+        printf("FIFO/Named Pipe\n");
+    } else if (S_ISLNK(file_stat.st_mode)) {
+        printf("Symbolic Link\n");
+    } else if (S_ISSOCK(file_stat.st_mode)) {
+        printf("Socket\n");
+    } else {
+        printf("Unknown File Type\n");
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+
+    print_file_type(argv[1]);
+
+    return 0;
+}
+--------------------------------------------------------------------------------------------------------------------
+Q5
+Write a C program to find whether a given file is present in current directory or not.
+
+
+#include <stdio.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+
+    const char *filename = argv[1];
+
+    // Use access to check if the file exists
+    if (access(filename, F_OK) != -1) {
+        printf("File '%s' is present in the current directory.\n", filename);
+    } else {
+        perror("File not found");
+        return 1;
+    }
+
+    return 0;
+}
+----------------------------------------------------------------------------------------------------------------      
+Q6
+Write a C program that a string as an argument and return all the files that begins with 
+that name in the current directory. For example > ./a.out foo will return all file names 
+that begins with foo
+
+#include <stdio.h>
+#include <dirent.h>
+#include <string.h>
+
+void list_files(const char *prefix) {
+    DIR *dir;
+    struct dirent *entry;
+
+    // Open the current directory
+    dir = opendir(".");
+    if (dir == NULL) {
+        perror("Error opening directory");
+        return;
+    }
+
+    // Iterate over entries in the directory
+    while ((entry = readdir(dir)) != NULL) {
+        // Check if the entry is a regular file and if its name starts with the specified prefix
+        if (entry->d_type == DT_REG && strncmp(entry->d_name, prefix, strlen(prefix)) == 0) {
+            printf("%s\n", entry->d_name);
+        }
+    }
+
+    // Close the directory
+    closedir(dir);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <prefix>\n", argv[0]);
+        return 1;
+    }
+
+    const char *prefix = argv[1];
+
+    // List files with the specified prefix in the current directory
+    list_files(prefix);
+
+    return 0;
+}
+------------------------------------------------------------------------------------------------------------------------
+*Q7
+Read the current directory and display the name of the files, no of files in current 
+directory
+
+#include <stdio.h>
+#include <dirent.h>
+
+int main() {
+    DIR *dir;
+    struct dirent *entry;
+    int fileCount = 0;
+    int dirCount = 0;
+
+    // Open the current directory
+    dir = opendir(".");
+
+    if (dir == NULL) {
+        printf("Error opening the directory.\n");
+        return 1;
+    }
+
+    // Read directory entries
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG) {
+            // Entry is a file
+            printf("File: %s\n", entry->d_name);
+            fileCount++;
+        } else if (entry->d_type == DT_DIR) {
+            // Entry is a subdirectory
+            printf("Directory: %s\n", entry->d_name);
+            dirCount++;
+        }
+    }
+
+    // Close the directory
+    closedir(dir);
+
+    printf("Total files: %d\n", fileCount);
+    printf("Total directories: %d\n", dirCount);
+
+    return 0;
+}
+--------------------------------------------------------------------------------------------------------------------
+Q8
+Write a C program which receives file names as command line arguments and displaythose filenames in ascending order according to their sizes.
+ I) (e.g $ a.out a.txt b.txt 
+c.txt, …)
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+// Structure to store file information
+struct FileInfo {
+    char *filename;
+    off_t size;
+};
+
+// Comparison function for qsort
+int compare_files(const void *a, const void *b) {
+    return ((struct FileInfo *)a)->size - ((struct FileInfo *)b)->size;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <file1> <file2> ... <fileN>\n", argv[0]);
+        return 1;
+    }
+
+    // Allocate an array of FileInfo structures
+    struct FileInfo *file_info = malloc((argc - 1) * sizeof(struct FileInfo));
+    if (file_info == NULL) {
+        perror("Error allocating memory");
+        return 1;
+    }
+
+    // Get and store file sizes
+    for (int i = 1; i < argc; i++) {
+        struct stat file_stat;
+
+        if (stat(argv[i], &file_stat) == -1) {
+            perror("Error getting file information");
+            free(file_info);
+            return 1;
+        }
+
+        file_info[i - 1].filename = argv[i];
+        file_info[i - 1].size = file_stat.st_size;
+    }
+
+    // Sort the array of FileInfo structures based on file sizes
+    qsort(file_info, argc - 1, sizeof(struct FileInfo), compare_files);
+
+    // Display filenames in ascending order according to their sizes
+    for (int i = 0; i < argc - 1; i++) {
+        printf("%s: %ld bytes\n", file_info[i].filename, (long)file_info[i].size);
+    }
+
+    // Free allocated memory
+    free(file_info);
+
+    return 0;
+}
+-------------------------------------------------------------------------------------------------------------------
+Q9
+Display all the files from current directory which are created in particular month
+
+#include <stdio.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <time.h>
+
+void list_files_by_month(int target_month) {
+    DIR *dir;
+    struct dirent *entry;
+    struct stat file_stat;
+
+    // Open the current directory
+    dir = opendir(".");
+    if (dir == NULL) {
+        perror("Error opening directory");
+        return;
+    }
+
+    // Get the current year
+    time_t current_time = time(NULL);
+    struct tm *current_tm = localtime(&current_time);
+    int current_year = current_tm->tm_year + 1900;
+
+    // Iterate over entries in the directory
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip directories and special entries
+        if (entry->d_type != DT_REG || entry->d_name[0] == '.') {
+            continue;
+        }
+
+        // Get file information
+        if (stat(entry->d_name, &file_stat) == -1) {
+            perror("Error getting file information");
+            continue;
+        }
+
+        // Check if the file was created in the specified month
+        struct tm *file_tm = localtime(&file_stat.st_mtime);
+        if (file_tm->tm_year + 1900 == current_year && file_tm->tm_mon + 1 == target_month) {
+            printf("%s\n", entry->d_name);
+        }
+    }
+
+    // Close the directory
+    closedir(dir);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <month>\n", argv[0]);
+        return 1;
+    }
+
+    int target_month = atoi(argv[1]);
+    if (target_month < 1 || target_month > 12) {
+        fprintf(stderr, "Invalid month. Please provide a number between 1 and 12.\n");
+        return 1;
+    }
+
+    list_files_by_month(target_month);
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------------------------------
+Q10
+Display all the files from current directory whose size is greater that n Bytes Where n 
+is accept from user.
+
+#include <stdio.h>
+#include <dirent.h>
+#include <sys/stat.h>
+
+void list_files_by_size(int min_size) {
+    DIR *dir;
+    struct dirent *entry;
+    struct stat file_stat;
+
+    // Open the current directory
+    dir = opendir(".");
+    if (dir == NULL) {
+        perror("Error opening directory");
+        return;
+    }
+
+    // Iterate over entries in the directory
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip directories and special entries
+        if (entry->d_type != DT_REG || entry->d_name[0] == '.') {
+            continue;
+        }
+
+        // Get file information
+        if (stat(entry->d_name, &file_stat) == -1) {
+            perror("Error getting file information");
+            continue;
+        }
+
+        // Check if the file size is greater than the specified minimum size
+        if (file_stat.st_size > min_size) {
+            printf("%s: %ld bytes\n", entry->d_name, (long)file_stat.st_size);
+        }
+    }
+
+    // Close the directory
+    closedir(dir);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <min_size>\n", argv[0]);
+        return 1;
+    }
+
+    int min_size = atoi(argv[1]);
+
+    if (min_size <= 0) {
+        fprintf(stderr, "Invalid minimum size. Please provide a positive integer.\n");
+        return 1;
+    }
+
+    list_files_by_size(min_size);
+
+    return 0;
+}
+-------------------------------------------------------------------------------------------------------------------
+Q11
+Write a C Program that demonstrates redirection of standard output to a file.
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main() {
+   
+    int fileDescriptor = open("a.txt", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fileDescriptor == -1) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Save the current standard output file descriptor
+    int originalStdout = dup(STDOUT_FILENO);
+
+    // Redirect standard output to the file
+    if (dup2(fileDescriptor, STDOUT_FILENO) == -1) {
+        perror("Error redirecting standard output");
+        exit(EXIT_FAILURE);
+    }
+
+    // Close the file descriptor as it's no longer needed
+    close(fileDescriptor);
+
+    // Now, standard output is redirected to the file
+
+    // Print some text to the redirected standard output
+    printf("This text will be redirected to the file.\n");
+
+    // Restore the original standard output
+    if (dup2(originalStdout, STDOUT_FILENO) == -1) {
+        perror("Error restoring standard output");
+        exit(EXIT_FAILURE);
+    }
+
+    // Close the original standard output file descriptor
+    close(originalStdout);
+
+    // Print a message to the original standard output
+    printf("This text goes to the original standard output.\n");
+
+    return 0;
+}
+---------------------------------------------------------------------------------------------------------------------
+
+Q12
+Write a C program that will only list all subdirectories in alphabetical order from 
+current directory.
+
+#include <stdio.h>
+#include <dirent.h>
+#include <sys/stat.h>
+
+void list_subdirectories() {
+    DIR *dir;
+    struct dirent *entry;
+    struct stat file_stat;
+
+    // Open the current directory
+    dir = opendir(".");
+    if (dir == NULL) {
+        perror("Error opening directory");
+        return;
+    }
+
+    // Iterate over entries in the directory
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip non-directory entries and special entries
+        if (entry->d_type != DT_DIR || entry->d_name[0] == '.') {
+            continue;
+        }
+
+        // Get file information
+        if (stat(entry->d_name, &file_stat) == -1) {
+            perror("Error getting file information");
+            continue;
+        }
+
+        // Print the name of the subdirectory
+        printf("%s\n", entry->d_name);
+    }
+
+    // Close the directory
+    closedir(dir);
+}
+
+int main() {
+    list_subdirectories();
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------------------------------
+Q13
+Write a C program that redirects standard output to a file output.txt. (use of dup and 
+open system call).
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main() {
+    // Open or create the output file (output.txt) for writing
+    int file_descriptor = open("output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+    if (file_descriptor == -1) {
+        perror("Error opening file");
+        return 1;
+    }
+
+    // Duplicate the file descriptor to replace stdout
+    if (dup2(file_descriptor, STDOUT_FILENO) == -1) {
+        perror("Error duplicating file descriptor");
+        close(file_descriptor);
+        return 1;
+    }
+
+    // Now, anything written to stdout will be redirected to the file
+
+    // Print to the redirected stdout
+    printf("This will be written to the file (output.txt) instead of the console.\n");
+
+    // Close the file descriptor
+    close(file_descriptor);
+
+    // Now, stdout is restored to its normal behavior
+    printf("This will be printed to the console.\n");
+
+    return 0;
+}
+
+---------------------------------------------------------------------------------------------------------------------------
+Q14
+Write a C program to Identify the type (Directory, character device, Block device, 
+Regular file, FIFO or pipe, symbolic link or socket) of given file using stat() system 
+call
+
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+void identifyFileType(const char *filename) {
+    struct stat fileInfo;
+
+    // Use stat() to get information about the file
+    if (stat(filename, &fileInfo) == 0) {
+        // Check the file type using st_mode field in the stat structure
+
+        if (S_ISREG(fileInfo.st_mode)) {
+            printf("%s is a regular file.\n", filename);
+        } else if (S_ISDIR(fileInfo.st_mode)) {
+            printf("%s is a directory.\n", filename);
+        } else if (S_ISCHR(fileInfo.st_mode)) {
+            printf("%s is a character device.\n", filename);
+        } else if (S_ISBLK(fileInfo.st_mode)) {
+            printf("%s is a block device.\n", filename);
+        } else if (S_ISFIFO(fileInfo.st_mode)) {
+            printf("%s is a FIFO or pipe.\n", filename);
+        } else if (S_ISLNK(fileInfo.st_mode)) {
+            printf("%s is a symbolic link.\n", filename);
+        } else if (S_ISSOCK(fileInfo.st_mode)) {
+            printf("%s is a socket.\n", filename);
+        } else {
+            printf("%s is of unknown type.\n", filename);
+        }
+    } else {
+        perror("Error in stat");
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+
+    const char *filename = argv[1];
+    identifyFileType(filename);
+
+    return 0;
+}
+-------------------------------------------------------------------------------------------------------------------
+Q15
+Generate parent process to write unnamed pipe and will read from it
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+
+int main() {
+    int pipe_fd[2];
+    pid_t pid;
+
+    // Create an unnamed pipe
+    if (pipe(pipe_fd) == -1) {
+        perror("Pipe creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create a child process
+    pid = fork();
+
+    if (pid < 0) {
+        perror("Fork failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {  // Parent process
+        close(pipe_fd[0]);  // Close the read end of the pipe in the parent
+
+        // Write data to the pipe
+        const char *message = "Hello, child process!";
+        write(pipe_fd[1], message, strlen(message) + 1);
+
+        // Close the write end of the pipe after writing
+        close(pipe_fd[1]);
+
+        // Wait for the child process to complete
+        wait(NULL);
+
+        printf("Parent process exiting.\n");
+    } else {  // Child process
+        close(pipe_fd[1]);  // Close the write end of the pipe in the child
+
+        // Read data from the pipe
+        char buffer[100];
+        read(pipe_fd[0], buffer, sizeof(buffer));
+
+        // Close the read end of the pipe after reading
+        close(pipe_fd[0]);
+
+        printf("Child process received: %s\n", buffer);
+
+        printf("Child process exiting.\n");
+    }
+
+    return 0;
+}
+
+
+--------------------------------------------------------------------------------------------------------------------
+Q16
+ Handle the two-way communication between parent and child processes using pipe.
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+int main() {
+    int pipe_fd_parent_to_child[2];
+    int pipe_fd_child_to_parent[2];
+    pid_t pid;
+
+    // Create pipes
+    if (pipe(pipe_fd_parent_to_child) == -1 || pipe(pipe_fd_child_to_parent) == -1) {
+        perror("Pipe creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create a child process
+    pid = fork();
+
+    if (pid < 0) {
+        perror("Fork failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {  // Parent process
+        close(pipe_fd_parent_to_child[0]);  // Close the read end of the parent-to-child pipe in the parent
+        close(pipe_fd_child_to_parent[1]);  // Close the write end of the child-to-parent pipe in the parent
+
+        // Write data to the parent-to-child pipe
+        const char *message_parent_to_child = "Hello, child process!";
+        write(pipe_fd_parent_to_child[1], message_parent_to_child, strlen(message_parent_to_child) + 1);
+
+        // Read data from the child-to-parent pipe
+        char buffer_child_to_parent[100];
+        read(pipe_fd_child_to_parent[0], buffer_child_to_parent, sizeof(buffer_child_to_parent));
+
+        // Close the remaining pipe ends
+        close(pipe_fd_parent_to_child[1]);
+        close(pipe_fd_child_to_parent[0]);
+
+        printf("Parent process received from child: %s\n", buffer_child_to_parent);
+
+        printf("Parent process exiting.\n");
+    } else {  // Child process
+        close(pipe_fd_parent_to_child[1]);  // Close the write end of the parent-to-child pipe in the child
+        close(pipe_fd_child_to_parent[0]);  // Close the read end of the child-to-parent pipe in the child
+
+        // Read data from the parent-to-child pipe
+        char buffer_parent_to_child[100];
+        read(pipe_fd_parent_to_child[0], buffer_parent_to_child, sizeof(buffer_parent_to_child));
+
+        printf("Child process received from parent: %s\n", buffer_parent_to_child);
+
+        // Write data to the child-to-parent pipe
+        const char *message_child_to_parent = "Hello, parent process!";
+        write(pipe_fd_child_to_parent[1], message_child_to_parent, strlen(message_child_to_parent) + 1);
+
+        // Close the remaining pipe ends
+        close(pipe_fd_parent_to_child[0]);
+        close(pipe_fd_child_to_parent[1]);
+
+        printf("Child process exiting.\n");
+    }
+
+    return 0;
+}
+-------------------------------------------------------------------------------------------------------------------
+Q17
+  Demonstrate the use of atexit() function
+
+#include <stdio.h>
+#include <stdlib.h>
+
+void cleanupFunction1() {
+    printf("Cleanup function 1 called.\n");
+}
+
+void cleanupFunction2() {
+    printf("Cleanup function 2 called.\n");
+}
+
+int main() {
+    // Register cleanup functions using atexit
+    if (atexit(cleanupFunction1) != 0) {
+        fprintf(stderr, "Failed to register cleanupFunction1.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (atexit(cleanupFunction2) != 0) {
+        fprintf(stderr, "Failed to register cleanupFunction2.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Main function executing.\n");
+
+    // Uncomment the next line to simulate an error and see the cleanup in action
+    // exit(EXIT_FAILURE);
+
+    return 0;
+}
+----------------------------------------------------------------------------------------------------------------
+Q18
+ Write a C program to demonstrates the different behaviour that can be seen with 
+automatic, global, register, static and volatile variables (Use setjmp() and longjmp() 
+system call)
+
+#include <stdio.h>
+#include <setjmp.h>
+
+jmp_buf jmpBuffer;
+
+void exampleFunction() {
+    volatile int volatileVar = 10;
+    static int staticVar = 20;
+    register int registerVar = 30;
+    int automaticVar = 40;
+    int globalVar = 50;
+
+    printf("Inside exampleFunction:\n");
+    printf("automaticVar: %d\n", automaticVar);
+    printf("staticVar: %d\n", staticVar);
+    printf("registerVar: %d\n", registerVar);
+    printf("volatileVar: %d\n", volatileVar);
+    printf("globalVar: %d\n", globalVar);
+
+    // Simulate a non-local jump using longjmp
+    longjmp(jmpBuffer, 1);
+}
+
+int main() {
+    if (setjmp(jmpBuffer) == 0) {
+        // This block is executed when setjmp is called initially
+
+        exampleFunction();
+
+    } else {
+        // This block is executed when longjmp is called, jumping back here
+
+        printf("\nBack in main after longjmp:\n");
+
+       
+    }
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------------------------------
+Q19
+Implement the following unix/linux command (use fork, pipe and exec system call) 
+ls –l | wc –l
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main() {
+    int pipe_fd[2];
+    pid_t pid;
+
+    // Create a pipe
+    if (pipe(pipe_fd) == -1) {
+        perror("Pipe creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create a child process
+    pid = fork();
+
+    if (pid < 0) {
+        perror("Fork failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {  // Parent process
+        // Close the write end of the pipe in the parent
+        close(pipe_fd[1]);
+
+        // Redirect the standard input to the read end of the pipe
+        dup2(pipe_fd[0], STDIN_FILENO);
+
+        // Close the unused file descriptor
+        close(pipe_fd[0]);
+
+        // Execute the wc -l command
+        execlp("wc", "wc", "-l", NULL);
+
+        // execlp() only returns if there is an error
+        perror("Exec failed");
+        exit(EXIT_FAILURE);
+    } else {  // Child process
+        // Close the read end of the pipe in the child
+        close(pipe_fd[0]);
+
+        // Redirect the standard output to the write end of the pipe
+        dup2(pipe_fd[1], STDOUT_FILENO);
+
+        // Close the unused file descriptor
+        close(pipe_fd[1]);
+
+        // Execute the ls -l command
+        execlp("ls", "ls", "-l", NULL);
+
+        // execlp() only returns if there is an error
+        perror("Exec failed");
+        exit(EXIT_FAILURE);
+    }
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------------------------------
+Q20
+Write a C program to create „n" child processes. When all „n" child processes 
+terminates, Display total cumulative time children spent in user and kernel mode.
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/times.h>
+
+void childProcess(int childNumber) {
+    printf("Child %d started\n", childNumber);
+    sleep(3);  // Simulate some work in the child process
+    printf("Child %d finished\n", childNumber);
+    exit(childNumber);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <number_of_children>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    int numChildren = atoi(argv[1]);
+
+    clock_t start, end;
+    struct tms start_times, end_times;
+
+    start = times(&start_times);
+
+    for (int i = 0; i < numChildren; ++i) {
+        pid_t pid = fork();
+
+        if (pid == -1) {
+            perror("Fork failed");
+            exit(EXIT_FAILURE);
+        }
+
+        if (pid == 0) {
+            // Child process
+            childProcess(i + 1);
+        }
+    }
+
+    int status;
+    while (wait(&status) > 0) {
+        // Wait for all child processes to finish
+    }
+
+    end = times(&end_times);
+
+    printf("\nTotal user time across all children: %f seconds\n", (double)(end_times.tms_utime - start_times.tms_utime) / sysconf(_SC_CLK_TCK));
+    printf("Total system time across all children: %f seconds\n", (double)(end_times.tms_stime - start_times.tms_stime) / sysconf(_SC_CLK_TCK));
+
+    return 0;
+}
+--------------------------------------------------------------------------------------------------------------------
+Q21
+Write a C program to create an unnamed pipe. The child process will write following 
+three messages to pipe and parent process display it. 
+Message1 = “Hello World” 
+Message2 = “Hello SPPU” 
+Message3 = “Linux is Funny”
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+int main() {
+    int pipe_fd[2];
+    pid_t pid;
+
+    // Create an unnamed pipe
+    if (pipe(pipe_fd) == -1) {
+        perror("Pipe creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create a child process
+    pid = fork();
+
+    if (pid < 0) {
+        perror("Fork failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {  // Parent process
+        // Close the write end of the pipe in the parent
+        close(pipe_fd[1]);
+
+        // Read and display messages from the pipe
+        char buffer[100];
+        while (read(pipe_fd[0], buffer, sizeof(buffer)) > 0) {
+            printf("Parent received: %s\n", buffer);
+        }
+
+        // Close the read end of the pipe after reading
+        close(pipe_fd[0]);
+
+        printf("Parent process exiting.\n");
+    } else {  // Child process
+        // Close the read end of the pipe in the child
+        close(pipe_fd[0]);
+
+        // Messages to be written to the pipe
+        const char *messages[] = {"Hello World", "Hello SPPU", "Linux is Funny"};
+
+        // Write messages to the pipe
+        for (int i = 0; i < 3; ++i) {
+            write(pipe_fd[1], messages[i], strlen(messages[i]) + 1);
+        }
+
+        // Close the write end of the pipe after writing
+        close(pipe_fd[1]);
+
+        printf("Child process exiting.\n");
+    }
+
+    return 0;
+}
+--------------------------------------------------------------------------------------------------------------------------
+Q22
+Write a C program to get and set the resource limits such as files, memory associated 
+with a process
+
+#include <stdio.h>
+#include <sys/resource.h>
+
+int main() {
+    // Get the current resource limit
+    struct rlimit limit;
+    getrlimit(RLIMIT_MEMLOCK, &limit);
+
+    // Print the current resource limit
+    printf("The current resource limit for files and memory is: %lu\n", limit.rlim_cur);
+
+    // Set a new resource limit
+    limit.rlim_cur = 1024 * 1024; // 1MB
+    setrlimit(RLIMIT_MEMLOCK, &limit);
+
+    // Get the updated resource limit
+    getrlimit(RLIMIT_MEMLOCK, &limit);
+
+    // Print the updated resource limit
+    printf("The updated resource limit for files and memory is: %lu\n", limit.rlim_cur);
+
+    return 0;
+}
+-------------------------------------------------------------------------------------------------------------------
+ Q23
+Write a program that illustrates how to execute two commands concurrently with a 
+pipe.
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+void executeCommand(char **command, int pipefd[2]) {
+    pid_t pid;
+
+    // Create a child process
+    if ((pid = fork()) == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) { // Child process
+        // Close the write end of the pipe, since this process will only read
+        close(pipefd[1]);
+
+        // Redirect stdin to read from the pipe
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+
+        // Execute the command
+        execvp(command[0], command);
+
+        // If execvp fails
+        perror("execvp");
+        exit(EXIT_FAILURE);
+    }
+}
+
+int main() {
+    int pipefd[2];
+    pid_t pid;
+    char *command1[] = {"echo", "Hello, World!", NULL};
+    char *command2[] = {"grep", "World", NULL};
+
+    // Create a pipe
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    // Execute command1 concurrently
+    executeCommand(command1, pipefd);
+
+    // Create a child process for command2
+    if ((pid = fork()) == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) { // Child process
+        // Close the read end of the pipe, since this process will only write
+        close(pipefd[0]);
+
+        // Redirect stdout to write to the pipe
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
+
+        // Execute the command
+        execvp(command2[0], command2);
+
+        // If execvp fails
+        perror("execvp");
+        exit(EXIT_FAILURE);
+    }
+
+    // Close both ends of the pipe in the parent process
+    close(pipefd[0]);
+    close(pipefd[1]);
+
+    // Wait for both child processes to finish
+    wait(NULL);
+    wait(NULL);
+
+    return 0;
+}
+
+-----------------------------------------------------------------------------------------------------------------------
+Q24 Write a C program that print the exit status of a terminated child process
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+int main() {
+    pid_t pid;
+
+    // Create a child process
+    if ((pid = fork()) == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) { // Child process
+        // Child process code here
+
+        // For example, let's exit with status 42
+        exit(42);
+    } else { // Parent process
+        int status;
+
+        // Wait for the child process to terminate
+        if (waitpid(pid, &status, 0) == -1) {
+            perror("waitpid");
+            exit(EXIT_FAILURE);
+        }
+
+        // Check if the child process terminated normally
+        if (WIFEXITED(status)) {
+            printf("Child process exited with status: %d\n", WEXITSTATUS(status));
+        } else if (WIFSIGNALED(status)) {
+            // Check if the child process was terminated by a signal
+            printf("Child process terminated by signal: %d\n", WTERMSIG(status));
+        } else {
+            printf("Child process terminated abnormally\n");
+        }
+    }
+
+    return 0;
+}
+-----------------------------------------------------------------------------------------------------------------------
+
+Q25
+Write a C program that catches the ctrl-c (SIGINT) signal for the first time and 
+display the appropriate message and exits on pressing ctrl-c again.
+
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <signal.h>
+void sigfun(int sig)
+{
+printf("You have presses Ctrl-C , please press again to exit");
+(void) signal(SIGINT, SIG_DFL);
+}
+int main()
+{
+(void) signal(SIGINT, sigfun);
+while(1) {
+printf("Hello World!");
+sleep(1);
+}
+return(0);
+}
+-------------------------------------------------------------------------------------------------------------------
+Q26
+Q26
+Write a C program which creates a child process and child process catches a signal 
+SIGHUP, SIGINT and SIGQUIT. The Parent process send a SIGHUP or SIGINT 
+signal after every 3 seconds, at the end of 15 second parent send SIGQUIT signal to 
+child and child terminates by displaying message "My Papa has Killed me!!!”
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+void signal_handler(int signum) {
+    if (signum == SIGHUP) {
+        printf("Child: Received SIGHUP signal.\n");
+    } else if (signum == SIGINT) {
+        printf("Child: Received SIGINT signal.\n");
+    } else if (signum == SIGQUIT) {
+        printf("Child: My Papa has Killed me!!!\n");
+        exit(EXIT_SUCCESS);
+    }
+}
+
+int main() {
+    pid_t pid;
+    pid = fork();
+    if (pid == -1) {
+        perror("Error creating child process");
+        exit(EXIT_FAILURE);
+    }
+    if (pid == 0) {
+        signal(SIGHUP, signal_handler);
+        signal(SIGINT, signal_handler);
+        signal(SIGQUIT, signal_handler);
+
+        while (1)
+   {
+       sleep(1);
+        }
+    } else 
+  {
+        sleep(3);
+        printf("Parent: Sending SIGHUP to the child.\n");
+        kill(pid, SIGHUP);
+        sleep(3);
+        printf("Parent: Sending SIGINT to the child.\n");
+        kill(pid, SIGINT);
+        sleep(9);
+        printf("Parent: Sending SIGQUIT to the child.\n");
+        kill(pid, SIGQUIT);
+        wait(NULL);
+        printf("Parent: Child process terminated.\n");
+    }
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------------------------------------
+Q27
+Write a C program to send SIGALRM signal by child process to parent process and 
+parent process make a provision to catch the signal and display alarm is fired.(Use 
+Kill, fork, signal and sleep system call)
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+// Signal handler function for SIGALRM
+void alarmHandler(int signo) {
+    if (signo == SIGALRM) {
+        printf("Alarm is fired!\n");
+        exit(EXIT_SUCCESS);
+    }
+}
+
+int main() {
+    pid_t pid;
+
+    // Set the signal handler for SIGALRM
+    if (signal(SIGALRM, alarmHandler) == SIG_ERR) {
+        perror("signal");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create a child process
+    if ((pid = fork()) == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) { // Child process
+        // Sleep for 5 seconds
+        sleep(5);
+
+        // Send SIGALRM to the parent process
+        kill(getppid(), SIGALRM);
+
+        exit(EXIT_SUCCESS);
+    } else { // Parent process
+        // Wait for the child process to terminate
+        wait(NULL);
+
+        printf("Parent process exiting.\n");
+    }
+
+    return 0;
+}
+-------------------------------------------------------------------------------------------------------------------
+Q28
+Write a C program that illustrates suspending and resuming processes using signals
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+// Signal handler function for SIGUSR1
+void sigusr1Handler(int signo) {
+    if (signo == SIGUSR1) {
+        printf("Child process received SIGUSR1 - Resuming...\n");
+    }
+}
+
+int main() {
+    pid_t pid;
+
+    // Create a child process
+    if ((pid = fork()) == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) { // Child process
+        // Set up signal handler for SIGUSR1
+        if (signal(SIGUSR1, sigusr1Handler) == SIG_ERR) {
+            perror("signal");
+            exit(EXIT_FAILURE);
+        }
+
+        printf("Child process is running. Waiting for SIGUSR1 to resume...\n");
+
+        // Infinite loop to keep the child process running
+        while (1) {
+            sleep(1);
+        }
+    } else { // Parent process
+        printf("Parent process created child process (PID: %d).\n", pid);
+
+        // Suspend the child process using SIGSTOP
+        printf("Suspending child process...\n");
+        kill(pid, SIGSTOP);
+
+        // Wait for a moment
+        sleep(2);
+
+        // Resume the child process using SIGCONT
+        printf("Resuming child process...\n");
+        kill(pid, SIGCONT);
+
+        // Wait for a moment
+        sleep(2);
+
+        // Send SIGUSR1 to the child process
+        printf("Sending SIGUSR1 to child process...\n");
+        kill(pid, SIGUSR1);
+
+        // Wait for the child process to terminate
+        wait(NULL);
+
+        printf("Parent process exiting.\n");
+    }
+
+    return 0;
+}
+--------------------------------------------------------------------------------------------------------------------------
+Q29 Write a C program which create a child process which catch a signal sighup, sigint 
+and sigquit. The Parent process send a sighup or sigint signal after every 3 seconds, at 
+the end of 30 second parent send sigquit signal to child and child terminates my 
+displaying message “My DADDY has Killed me!!!”
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+// Signal handler function for SIGHUP, SIGINT, and SIGQUIT
+void signalHandler(int signo) {
+    if (signo == SIGHUP) {
+        printf("Child process received SIGHUP\n");
+    } else if (signo == SIGINT) {
+        printf("Child process received SIGINT\n");
+    } else if (signo == SIGQUIT) {
+        printf("My DADDY has Killed me!!!\n");
+        exit(EXIT_SUCCESS);
+    }
+}
+
+int main() {
+    pid_t pid;
+
+    // Create a child process
+    if ((pid = fork()) == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) { // Child process
+        // Set up signal handlers for SIGHUP, SIGINT, and SIGQUIT
+        if (signal(SIGHUP, signalHandler) == SIG_ERR ||
+            signal(SIGINT, signalHandler) == SIG_ERR ||
+            signal(SIGQUIT, signalHandler) == SIG_ERR) {
+            perror("signal");
+            exit(EXIT_FAILURE);
+        }
+
+        // Infinite loop to keep the child process running
+        while (1) {
+            sleep(1); // Sleep to allow time for signal handling
+        }
+    } else { // Parent process
+        int i;
+
+        // Send SIGHUP or SIGINT every 3 seconds for 9 times
+        for (i = 0; i < 9; ++i) {
+            sleep(3);
+            if (i % 2 == 0) {
+                kill(pid, SIGHUP);
+            } else {
+                kill(pid, SIGINT);
+            }
+        }
+
+        // After 30 seconds, send SIGQUIT to terminate the child
+        sleep(6); // Additional 6 seconds for signal handling
+        kill(pid, SIGQUIT);
+
+        // Wait for the child process to terminate
+        wait(NULL);
+
+        printf("Parent process exiting.\n");
+    }
+
+    return 0;
+}
+
+-------------------------------------------------------------------------------------------------------------------
+Q30 Write a C program to implement the following unix/linux command (use fork, pipe 
+and exec system call). Your program should block the signal Ctrl-C and Ctrl-\ signal 
+during the execution. i. Ls –l | wc –l
+
+ 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+int main() {
+    int pipefd[2];
+    pid_t ls_pid, wc_pid;
+
+    // Create a pipe
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    // Block SIGINT and SIGQUIT signals
+    sigset_t block_set;
+    sigemptyset(&block_set);
+    sigaddset(&block_set, SIGINT);
+    sigaddset(&block_set, SIGQUIT);
+    if (sigprocmask(SIG_BLOCK, &block_set, NULL) == -1) {
+        perror("sigprocmask");
+        exit(EXIT_FAILURE);
+    }
+
+    // Fork to create a child process for 'ls -l'
+    if ((ls_pid = fork()) == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (ls_pid == 0) { // Child process (ls -l)
+        // Redirect stdout to the write end of the pipe
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[0]);
+        close(pipefd[1]);
+
+        // Execute 'ls -l'
+        execlp("ls", "ls", "-l", (char *)NULL);
+        perror("execlp ls");
+        exit(EXIT_FAILURE);
+    }
+
+    // Fork again to create a child process for 'wc -l'
+    if ((wc_pid = fork()) == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (wc_pid == 0) { // Child process (wc -l)
+        // Redirect stdin to the read end of the pipe
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+        close(pipefd[1]);
+
+        // Execute 'wc -l'
+        execlp("wc", "wc", "-l", (char *)NULL);
+        perror("execlp wc");
+        exit(EXIT_FAILURE);
+    }
+
+    // Close the pipe in the parent process
+    close(pipefd[0]);
+    close(pipefd[1]);
+
+    // Unblock SIGINT and SIGQUIT signals in the parent process
+    if (sigprocmask(SIG_UNBLOCK, &block_set, NULL) == -1) {
+        perror("sigprocmask");
+        exit(EXIT_FAILURE);
+    }
+
+    // Wait for both child processes to finish
+    waitpid(ls_pid, NULL, 0);
+    waitpid(wc_pid, NULL, 0);
+
+    return 0;
+}
+--------------------------------------------------------------------------------------------------------------------
+Q31
+Write a C program which creates a child process to run linux/ unix command or any 
+user defined program. The parent process set the signal handler for death of child 
+signal and Alarm signal. If a child process does not complete its execution in 5 
+second then parent process kills child process
+	
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+// Signal handler function for SIGCHLD
+void sigchldHandler(int signo) {
+    if (signo == SIGCHLD) {
+        printf("Child process terminated.\n");
+    }
+}
+
+// Signal handler function for SIGALRM
+void sigalrmHandler(int signo) {
+    if (signo == SIGALRM) {
+        printf("Timeout: Child process execution took too long. Killing child process.\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+int main(int argc, char *argv[]) {
+    pid_t pid;
+    int status;
+
+    // Check if a command is provided
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s command [arg1] [arg2] ...\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    // Fork to create a child process
+    if ((pid = fork()) == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) { // Child process
+        // Execute the provided command in the child process
+        execvp(argv[1], &argv[1]);
+        perror("execvp");
+        exit(EXIT_FAILURE);
+    } else { // Parent process
+        // Set up signal handlers for SIGCHLD and SIGALRM
+        if (signal(SIGCHLD, sigchldHandler) == SIG_ERR || signal(SIGALRM, sigalrmHandler) == SIG_ERR) {
+            perror("signal");
+            exit(EXIT_FAILURE);
+        }
+
+        // Set an alarm for 5 seconds
+        alarm(5);
+
+        // Wait for the child process to terminate
+        if (waitpid(pid, &status, 0) == -1) {
+            perror("waitpid");
+            exit(EXIT_FAILURE);
+        }
+
+        // Cancel the alarm
+        alarm(0);
+
+        // Check if the child process terminated normally
+        if (WIFEXITED(status)) {
+            printf("Child process exited with status: %d\n", WEXITSTATUS(status));
+        } else if (WIFSIGNALED(status)) {
+            printf("Child process terminated by signal: %d\n", WTERMSIG(status));
+        } else {
+            printf("Child process terminated abnormally\n");
+        }
+    }
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------------------------------
+
+// display a given message 'n' times 
+
+#include <stdio.h>
+#include <setjmp.h>
+
+// Global variables
+jmp_buf jumpBuffer;
+
+void printMessage(int n, const char* message) {
+    if (n <= 0) {
+        // Return to the setjmp point
+        longjmp(jumpBuffer, 1);
+    }
+
+    printf("%s\n", message);
+
+    // Decrement n and recursively call printMessage
+    printMessage(n - 1, message);
+}
+
+int main() {
+    // Setjmp point
+    if (setjmp(jumpBuffer) == 0) {
+        // Prompt user for input
+        int n;
+        printf("Enter the number of times to display the message: ");
+        scanf("%d", &n);
+
+        // Clear input buffer
+        while (getchar() != '\n');
+
+        // Prompt user for message
+        char message[256];
+        printf("Enter the message to display: ");
+        fgets(message, sizeof(message), stdin);
+
+        // Remove trailing newline character from message
+        message[strcspn(message, "\n")] = '\0';
+
+        // Call printMessage
+        printMessage(n, message);
+    }
+
+    return 0;
+}
+------------------------------------------------------------------------------------------------------------------------Q
+// blocks the SIGQUIT signal 
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+void handleSignal(int signal) 
+{
+    if (signal == SIGQUIT) {
+        printf("Received SIGQUIT signal. Unblocking the signal.\n");
+        sigset_t unblockSet;
+        sigemptyset(&unblockSet);
+        sigaddset(&unblockSet, SIGQUIT);
+        sigprocmask(SIG_UNBLOCK, &unblockSet, NULL);
+    }
+}
+
+int main() {
+    // Set up signal handler
+    signal(SIGQUIT, handleSignal);
+
+    // Block SIGQUIT signal
+    sigset_t blockSet;
+    sigemptyset(&blockSet);
+    sigaddset(&blockSet, SIGQUIT);
+    sigprocmask(SIG_BLOCK, &blockSet, NULL);
+
+    printf("SIGQUIT signal is blocked for 5 seconds.\n");
+
+    sleep(5);
+
+    // Check for pending signals
+    sigset_t pendingSet;
+    sigpending(&pendingSet);
+
+    if (sigismember(&pendingSet, SIGQUIT)) {
+        printf("SIGQUIT signal occurred during the blocking period.\n");
+        printf("Unblocking the signal.\n");
+        sigprocmask(SIG_UNBLOCK, &blockSet, NULL);
+    }
+
+    // Wait for another occurrence of SIGQUIT signal to terminate the program
+    pause();
+
+    printf("Program terminated.\n");
+
+    return 0;
+}
+//press Ctrl+\ (SIGQUIT), the program will unblock the signal. If you press Ctrl+\ again, the program will terminate. 
+------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------
+Q
+//multiple files as command line arguments and prints their sizes:
+
+#include <stdio.h>
+
+int main(int argc, char *argv[]) {
+    // Iterate through the command line arguments
+    for (int i = 1; i < argc; i++) {
+        FILE *file = fopen(argv[i], "r");
+        if (file == NULL) {
+            printf("Unable to open file: %s\n", argv[i]);
+        } else {
+            // Move the file pointer to the end to get the size
+            fseek(file, 0, SEEK_END);
+            long size = ftell(file);
+            fclose(file);
+            printf("File: %s, Size: %ld bytes\n", argv[i], size);
+        }
+    }
+
+    return 0;
+}
+//You can run this program and provide the file names as comman
+------------------------------------------------------------------------------------------------------------------------
+Q
+//last access and modified time of a given file
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+int main() {
+    // File path
+    const char *filePath = "AI practical/demopy.py";
+
+    // Get file information
+    struct stat fileInfo;
+    if (stat(filePath, &fileInfo) == -1) {
+        printf("Failed to get file information.\n");
+        return 1;
+    }
+
+    // Display last access and modified time
+    printf("Last Access Time: %s", ctime(&fileInfo.st_atime));
+    printf("Last Modified Time: %s", ctime(&fileInfo.st_mtime));
+
+    return 0;
+}
+//to run *filePath = "enter path of the file ";
+------------------------------------------------------------------------------------------------------------------------Q
+// maps a given file in memory and displays the content of the mapped file in reverse:
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        printf("Please provide the file name as a command line argument.\n");
+        return 1;
+    }
+
+    // Open the file
+    int file = open(argv[1], O_RDONLY);
+    if (file == -1) {
+        printf("Unable to open the file.\n");
+        return 1;
+    }
+
+    // Get the size of the file
+    struct stat st;
+    if (fstat(file, &st) == -1) {
+        printf("Unable to get file size.\n");
+        close(file);
+        return 1;
+    }
+    off_t size = st.st_size;
+
+    // Map the file into memory
+    char *fileData = mmap(NULL, size, PROT_READ, MAP_PRIVATE, file, 0);
+    if (fileData == MAP_FAILED) {
+        printf("Unable to map the file into memory.\n");
+        close(file);
+        return 1;
+    }
+
+    // Print the content of the mapped file in reverse
+    for (off_t i = size - 1; i >= 0; i--) {
+        printf("%c", fileData[i]);
+    }
+
+    // Unmap the file from memory
+    munmap(fileData, size);
+
+    // Close the file
+    close(file);
+
+    return 0;
+}
+//You can run this program and provide the file name as a command line argument. It will map the file into memory and display its content in reverse. 
+------------------------------------------------------------------------------------------------------------------------Q
+//set the resource limit for files and memory associated with a process:
+
+
+------------------------------------------------------------------------------------------------------------------------Q
+
+//creates two files with the specified permissions:
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+int main() {
+    // Create the first file with read and write permissions for owner, group, and other users
+    int file1 = open("file1.txt", O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    if (file1 == -1) {
+        printf("Oops! Unable to create file1.txt.\n");
+        return 1;
+    }
+
+    // Turn on the group-ID and turn off group execute permission for the first file
+    if (chmod("file1.txt", S_ISGID | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1) {
+        printf("Oops! Unable to modify permissions for file1.txt.\n");
+        return 1;
+    }
+
+    // Create the second file with read and write permissions only for the owner
+    umask(S_IWGRP | S_IROTH | S_IWOTH);
+    int file2 = open("file2.txt", O_CREAT, S_IRUSR | S_IWUSR);
+    if (file2 == -1) {
+        printf("Oops! Unable to create file2.txt.\n");
+        return 1;
+    }
+
+    // Set the read permission for all users for the second file
+    if (chmod("file2.txt", S_IRUSR | S_IRGRP | S_IROTH) == -1) {
+        printf("Oops! Unable to modify permissions for file2.txt.\n");
+        return 1;
+    }
+
+    printf("Done! Files created with the specified permissions.\n");
+
+    return 0;
+}
+//This program creates two files: file1.txt and file2.txt. The first file has read and write permissions for the owner, group, and other users. The second file has read and write permissions only for the owner. The program then modifies the permissions using the chmod() function.
+------------------------------------------------------------------------------------------------------------------------Q
+//type of file where filename is accepted through Command Line.
+#include<stdio.h>
+#include<stdlib.h>
+#include<fcntl.h>
+#include<unistd.h>
+#include<sys/stat.h>
+#include<sys/types.h>
+#include<dirent.h>
+int main (int argc, char *argv[])
+{
+struct stat fileStat;
+char fnm[30];
+int fd=0;
+FILE *filename;
+printf("Enter file name= ");
+scanf("%s",fnm);
+if ( ( fd = open (fnm , O_RDONLY) ) == -1){
+perror ( "open " );
+system("pause");
+exit (1) ;
+}
+if(fstat(fd, &fileStat)<0) return 1;
+printf("Information for %s\n",fnm);
+// expected filetype syntax here
+system("pause");
+return 0;
+}
+------------------------------------------------------------------------------------------------------------------------Q
+//Write a C program which display the information of a given file similar to given by the unix/linux command on current directory
+// (1.e file Access permission, file name, file type, User id,group id, file size, file access and modified     time and so on).
+// DO NOT simply DO NOT simply exec is -1<filenamey or system command from the program
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <time.h>
+#include <pwd.h>
+#include <grp.h>
+
+void displayFileInfo(const char *filename) {
+    struct stat fileInfo;
+
+    // Get file information
+    if (stat(filename, &fileInfo) == -1) {
+        perror("Error in stat");
+        return;
+    }
+
+    // Display file information
+    printf("File Information for: %s\n", filename);
+    printf("=====================================\n");
+    printf("File type:");
+
+    // Check file type
+    switch (fileInfo.st_mode & S_IFMT) {
+        case S_IFREG:
+            printf("Regular file\n");
+            break;
+        case S_IFDIR:
+            printf("Directory\n");
+            break;
+        case S_IFLNK:
+            printf("Symbolic link\n");
+            break;
+        default:
+            printf("Unknown file type\n");
+    }
+
+    printf("File size:=%ld bytes\n", (long)fileInfo.st_size);
+    printf("File permissions:=%o\n", (unsigned int)fileInfo.st_mode & 0777);
+    printf("User ID:=%d\n", (int)fileInfo.st_uid);
+    printf("Group ID:=%d\n", (int)fileInfo.st_gid);
+
+    // Get user and group names
+    struct passwd *user_info = getpwuid(fileInfo.st_uid);
+    struct group *group_info = getgrgid(fileInfo.st_gid);
+
+    if (user_info != NULL) {
+        printf("User name:%s\n", user_info->pw_name);
+    } else {
+        printf("User name:Unknown\n");
+    }
+
+    if (group_info != NULL) {
+        printf("Group name:%s\n", group_info->gr_name);
+    } else {
+        printf("Group name:Unknown\n");
+    }
+
+    printf("Last access time:%s", ctime(&fileInfo.st_atime));
+    printf("Last modification time:%s", ctime(&fileInfo.st_mtime));
+    printf("=====================================\n");
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+
+    const char *filename = argv[1];
+    displayFileInfo(filename);
+
+    return 0;
+}
+
+
+
+------------------------------------------------------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------------------------------------------------------
+
+
+
